@@ -103,6 +103,11 @@ void TM1637_set_brightness(const uint8_t brightness);
 void TM1637_enable(const bool value);
 
 /**
+ * Set 2 digit on display
+ */
+void TM1637_set2(uint8_t digit, uint8_t offset);
+
+/**
  * Set time on display
  */
 void TM1637_setTime(uint8_t hour,uint8_t min);

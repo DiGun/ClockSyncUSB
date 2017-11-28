@@ -44,42 +44,36 @@ static const uint8_t _digit2segments[] =
 	0x5E, // d
 	0x79, // E
 	0x71, // F
-	
 };
 
 static uint8_t _brightness = TM1637_DEFAULT_BRIGHTNESS;
 static uint8_t _digit = 0xff;
 static uint8_t _flags = 0x00;
 
-void
-TM1637_init(void)
+void TM1637_init(void)
 {
-
 	TM1637_DDR |= ((TM1637_DIO_PIN)|(TM1637_CLK_PIN));
 	TM1637_OUT &= ~((TM1637_DIO_PIN)|(TM1637_CLK_PIN));
 	_flags |= TM1637_FLAG_ENABLED;
 	TM1637_clear();
 }
 
-void
-TM1637_display_digit(const uint8_t addr, const uint8_t digit)
+void TM1637_display_digit(const uint8_t addr, const uint8_t digit)
 {
-	uint8_t segments = digit < 10 ? _digit2segments[digit] : 0x00;
+	uint8_t segments = digit < 0x10 ? _digit2segments[digit] : 0x00;
 
 	if (addr == TM1637_SET_ADR_01H) {
 		_digit = digit;
-		if (_flags & TM1637_FLAG_SHOWCOLON) {
+		if (_flags & TM1637_FLAG_SHOWCOLON) 
+		{
 			segments |= 0x80;
 		}
 	}
-
 	TM1637_display_segments(addr, segments);
 }
 
-void
-TM1637_display_segments(const uint8_t addr, const uint8_t segments)
+void TM1637_display_segments(const uint8_t addr, const uint8_t segments)
 {
-
 	TM1637_cmd(TM1637_CMD_SET_DATA | TM1637_SET_DATA_F_ADDR);
 	TM1637_start();
 	TM1637_write_byte(TM1637_CMD_SET_ADDR | addr);
@@ -88,10 +82,8 @@ TM1637_display_segments(const uint8_t addr, const uint8_t segments)
 	TM1637_configure();
 }
 
-void
-TM1637_display_colon(bool value)
+void TM1637_display_colon(bool value)
 {
-
 	if (value) {
 		_flags |= TM1637_FLAG_SHOWCOLON;
 	} else {
@@ -100,10 +92,8 @@ TM1637_display_colon(bool value)
 	TM1637_display_digit(TM1637_SET_ADR_01H, _digit);
 }
 
-void
-TM1637_clear(void)
+void TM1637_clear(void)
 {
-
 	TM1637_display_colon(false);
 	TM1637_display_segments(TM1637_SET_ADR_00H, 0x00);
 	TM1637_display_segments(TM1637_SET_ADR_01H, 0x00);
@@ -111,63 +101,55 @@ TM1637_clear(void)
 	TM1637_display_segments(TM1637_SET_ADR_03H, 0x00);
 }
 
-void
-TM1637_set_brightness(const uint8_t brightness)
+void TM1637_set_brightness(const uint8_t brightness)
 {
-
 	_brightness = brightness & 0x07;
 	TM1637_configure();
 }
 
-void
-TM1637_enable(bool value)
+void TM1637_enable(bool value)
 {
-
-	if (value) {
+	if (value) 
+	{
 		_flags |= TM1637_FLAG_ENABLED;
-	} else {
+	}
+	else
+	{
 		_flags &= ~TM1637_FLAG_ENABLED;
 	}
 	TM1637_configure();
 }
 
-void
-TM1637_configure(void)
+void TM1637_configure(void)
 {
 	uint8_t cmd;
 
 	cmd = TM1637_CMD_SET_DSIPLAY;
 	cmd |= _brightness;
-	if (_flags & TM1637_FLAG_ENABLED) {
+	if (_flags & TM1637_FLAG_ENABLED) 
+	{
 		cmd |= TM1637_SET_DISPLAY_ON;
 	}
-
 	TM1637_cmd(cmd);
 }
 
-void
-TM1637_cmd(uint8_t value)
+void TM1637_cmd(uint8_t value)
 {
-
 	TM1637_start();
 	TM1637_write_byte(value);
 	TM1637_stop();
 }
 
-void
-TM1637_start(void)
+void TM1637_start(void)
 {
-
 	TM1637_DIO_HIGH();
 	TM1637_CLK_HIGH();
 	_delay_us(TM1637_DELAY_US);
 	TM1637_DIO_LOW();
 }
 
-void
-TM1637_stop(void)
+void TM1637_stop(void)
 {
-
 	TM1637_CLK_LOW();
 	_delay_us(TM1637_DELAY_US);
 
@@ -180,21 +162,23 @@ TM1637_stop(void)
 	TM1637_DIO_HIGH();
 }
 
-uint8_t
-TM1637_write_byte(uint8_t value)
+uint8_t TM1637_write_byte(uint8_t value)
 {
 	uint8_t i, ack;
 
-	for (i = 0; i < 8; ++i, value >>= 1) {
+	for (i = 0; i < 8; ++i, value >>= 1) 
+	{
 		TM1637_CLK_LOW();
 		_delay_us(TM1637_DELAY_US);
 
-		if (value & 0x01) {
+		if (value & 0x01) 
+		{
 			TM1637_DIO_HIGH();
-		} else {
+		}
+		else
+		{
 			TM1637_DIO_LOW();
 		}
-
 		TM1637_CLK_HIGH();
 		_delay_us(TM1637_DELAY_US);
 	}
@@ -205,7 +189,8 @@ TM1637_write_byte(uint8_t value)
 	_delay_us(TM1637_DELAY_US);
 
 	ack = TM1637_DIO_READ();
-	if (ack) {
+	if (ack) 
+	{
 		TM1637_DIO_OUTPUT();
 		TM1637_DIO_LOW();
 	}
@@ -218,27 +203,26 @@ TM1637_write_byte(uint8_t value)
 	_delay_us(TM1637_DELAY_US);
 
 	TM1637_DIO_OUTPUT();
-
 	return ack;
 }
-/*
-void set2(uint8_t dig, uint8_t offset)
+
+void TM1637_set2(uint8_t digit, uint8_t offset)
 {
-	if (dig<10)
+	if (digit<10)
 	{
-		setDigit(offset--, dig);
-		setDigit(offset--, 0);
+		TM1637_display_digit(offset--, digit);
+		TM1637_display_digit(offset--, 0);
 	}
 	else
 	{
-		setDigit(offset--, dig % 10);
-		dig /= 10;
-		setDigit(offset--, dig);
+		TM1637_display_digit(offset--, digit % 10);
+		digit /= 10;
+		TM1637_display_digit(offset--, digit);
 	}
 }
-*/
 
-void TM1637_setTime(uint8_t hour,uint8_t min)
+void TM1637_setTime(uint8_t hour,uint8_t minute)
 {
-	
+	TM1637_set2(hour,1);
+	TM1637_set2(minute,3);
 }
