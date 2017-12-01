@@ -46,7 +46,6 @@ static const uint8_t _digit2segments[] =
 	0x71, // F
 };
 
-static uint8_t _brightness = TM1637_DEFAULT_BRIGHTNESS;
 static uint8_t _digit = 0xff;
 static uint8_t _flags = 0x00;
 
@@ -56,6 +55,7 @@ void TM1637_init(void)
 	TM1637_OUT &= ~((TM1637_DIO_PIN)|(TM1637_CLK_PIN));
 	_flags |= TM1637_FLAG_ENABLED;
 	TM1637_clear();
+	TM1637_brightness = TM1637_DEFAULT_BRIGHTNESS;
 }
 
 void TM1637_display_digit(const uint8_t addr, const uint8_t digit)
@@ -103,7 +103,7 @@ void TM1637_clear(void)
 
 void TM1637_set_brightness(const uint8_t brightness)
 {
-	_brightness = brightness & 0x07;
+	TM1637_brightness = brightness & 0x07;
 	TM1637_configure();
 }
 
@@ -125,7 +125,7 @@ void TM1637_configure(void)
 	uint8_t cmd;
 
 	cmd = TM1637_CMD_SET_DSIPLAY;
-	cmd |= _brightness;
+	cmd |= TM1637_brightness;
 	if (_flags & TM1637_FLAG_ENABLED) 
 	{
 		cmd |= TM1637_SET_DISPLAY_ON;

@@ -46,7 +46,7 @@
 #define	TM1637_SET_DISPLAY_OFF		0x00 // off
 #define	TM1637_SET_DISPLAY_ON		0x08 // on
 
-
+uint8_t TM1637_brightness;
 /**
  * Initialize TM1637 display driver.
  * Clock pin (TM1637_CLK_PIN) and data pin (TM1637_DIO_PIN) 

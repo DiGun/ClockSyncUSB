@@ -112,6 +112,17 @@ void func_get(char c)
 		uart_putln();
 		func_ok();
 		break;
+		
+		case 'I':	//intens
+		uart_putc_w('A');
+		uart_putc_w('I');
+		NumbToUART(TM1637_brightness);
+		uart_putc_w('D');
+		NumbToUART(TM1637_brightness);
+		uart_putln();
+		func_ok();
+		break;
+				
 		case 'A':	//get
 		func_error();
 		//		cmd_type=c;
