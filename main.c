@@ -35,13 +35,13 @@ void Init()
 
 void NumbToUART(uint32_t number)
 {
-	char s[10];
-	char* c;
-	c=ultoa(number,s,10);
-	while(c[0])
+	char s[12];
+	char* ch;
+	ch=ultoa(number,s,10);
+	while(ch[0])
 	{
-		uart_putc_w(c[0]);
-		c++;
+		uart_putc_w(ch[0]);
+		ch++;
 	}
 }
 
@@ -312,10 +312,8 @@ ISR(TIMER0_OVF_vect)
 	}
 }
 
-char c;
 int main(void)
 {
-  c = 0;
   mode=1;
   cmd_mode=0;
   cmd_status=0;
@@ -385,14 +383,19 @@ int main(void)
 	  time=rtc_Time2Unix(&_tm);
 	  refresh=0;
 	}
-	if ((uart_getc(&c))==0)
 	{
+      char c;
+	  if ((uart_getc(&c))==0)
+	  {
 		main_func(c);
+/*	DEBUG		
 		mode=0;
 		TM1637_display_digit(0,c>>4);
 		TM1637_display_digit(1,0x0f&c);
 		TM1637_display_segments(2,0);
 		TM1637_display_segments(3,0);
-	}
+*/		
+      }
+	}	
  }
 }
