@@ -7,6 +7,8 @@ Debug/*
 
 Release/*
 
+nbproject/*
+
 clockUART.pdsprj.DIGUNER.DiGun.workspace
 
 Backup Of clockUART.pdsbak
@@ -20,3 +22,5 @@ TcfTransactionLog.csv
 Clock4.3.atsln
 
 Clock4.3.atsuo
+
+Makefile

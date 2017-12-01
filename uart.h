@@ -26,13 +26,13 @@
 #endif
 
 
-#define BUFFERSIZE 64
+#define BUFFERSIZE 48
 
 struct ringBuffer   {
     volatile uint8_t *start;
     volatile uint8_t *end;
     uint8_t buffer[BUFFERSIZE];
-} rxBuffer, txBuffer;
+} UARTrxBuffer, UARTtxBuffer;
 
 volatile uint8_t readyToExchange;
 

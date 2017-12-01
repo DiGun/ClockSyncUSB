@@ -28,10 +28,10 @@ void uart_init()
     UCSRB |= (1<<RXCIE) | (1<<RXEN) | (1<<TXEN);
 
     /* init ring buffer pointers */
-    rxBuffer.start = rxBuffer.buffer;
-    rxBuffer.end = rxBuffer.buffer;
-    txBuffer.start = txBuffer.buffer;
-    txBuffer.end = txBuffer.buffer;
+    UARTrxBuffer.start = UARTrxBuffer.buffer;
+    UARTrxBuffer.end = UARTrxBuffer.buffer;
+    UARTtxBuffer.start = UARTtxBuffer.buffer;
+    UARTtxBuffer.end = UARTtxBuffer.buffer;
 	readyToExchange=1;
 }
 
@@ -41,21 +41,21 @@ void uart_init()
 int8_t uart_putc(char c)
 {
     /* is the buffer full? */
-    if((txBuffer.end == &txBuffer.buffer[BUFFERSIZE-1] &&
-        txBuffer.start == txBuffer.buffer) ||
-        txBuffer.end == txBuffer.start-1) {
+    if((UARTtxBuffer.end == &UARTtxBuffer.buffer[BUFFERSIZE-1] &&
+        UARTtxBuffer.start == UARTtxBuffer.buffer) ||
+        UARTtxBuffer.end == UARTtxBuffer.start-1) {
 //	asm("nop;");
         return -1;
     }
 
     /* add element to buffer */
-    *txBuffer.end = c;
+    *UARTtxBuffer.end = c;
 
     /* set pointer to next field */
-    if(txBuffer.end == &txBuffer.buffer[BUFFERSIZE-1])
-        txBuffer.end = txBuffer.buffer;
+    if(UARTtxBuffer.end == &UARTtxBuffer.buffer[BUFFERSIZE-1])
+        UARTtxBuffer.end = UARTtxBuffer.buffer;
     else
-        txBuffer.end++;
+        UARTtxBuffer.end++;
 
     /* enable tx register empty interrupt */
     UCSRB |= (1<<UDRIE);
@@ -128,20 +128,20 @@ int8_t uart_getc(char *dest)
     /* is the buffer empty? */
     readyToExchange = 0;
     UCSRB |= (1 << RXCIE);
-    if(rxBuffer.start == rxBuffer.end)  
+    if(UARTrxBuffer.start == UARTrxBuffer.end)  
 	{
 
         return -1;
     }
 
     /* get element from buffer */
-    *dest = *rxBuffer.start;
+    *dest = *UARTrxBuffer.start;
 
     /* set pointer to next field */
-    if(rxBuffer.start == &rxBuffer.buffer[BUFFERSIZE-1])
-        rxBuffer.start = rxBuffer.buffer;
+    if(UARTrxBuffer.start == &UARTrxBuffer.buffer[BUFFERSIZE-1])
+        UARTrxBuffer.start = UARTrxBuffer.buffer;
     else
-        rxBuffer.start++;
+        UARTrxBuffer.start++;
 		
     return 0;
 }
@@ -158,21 +158,21 @@ ISR(USART__RXC_vect)
     rc = UDR;
 
     /* store in buffer */
-    if((rxBuffer.end == &rxBuffer.buffer[BUFFERSIZE-1] &&
-        rxBuffer.start == rxBuffer.buffer) ||
-        rxBuffer.end == rxBuffer.start-1)   
+    if((UARTrxBuffer.end == &UARTrxBuffer.buffer[BUFFERSIZE-1] &&
+        UARTrxBuffer.start == UARTrxBuffer.buffer) ||
+        UARTrxBuffer.end == UARTrxBuffer.start-1)   
 	{
 //		uart_stop_receve();
         return;
     }
     else    
 	{
-        *rxBuffer.end = rc;
+        *UARTrxBuffer.end = rc;
 
-        if(rxBuffer.end == &rxBuffer.buffer[BUFFERSIZE-1])
-            rxBuffer.end = rxBuffer.buffer;
+        if(UARTrxBuffer.end == &UARTrxBuffer.buffer[BUFFERSIZE-1])
+            UARTrxBuffer.end = UARTrxBuffer.buffer;
         else
-            rxBuffer.end++;
+            UARTrxBuffer.end++;
     }
 }
 
@@ -180,16 +180,16 @@ ISR(USART__RXC_vect)
 ISR(USART__UDRE_vect)
 {
     /* send byte */
-    UDR = *txBuffer.start;
+    UDR = *UARTtxBuffer.start;
 
     /* set pointer to next field */
-    if(txBuffer.start == &txBuffer.buffer[BUFFERSIZE-1])
-        txBuffer.start = txBuffer.buffer;
+    if(UARTtxBuffer.start == &UARTtxBuffer.buffer[BUFFERSIZE-1])
+        UARTtxBuffer.start = UARTtxBuffer.buffer;
     else
-        txBuffer.start++;
+        UARTtxBuffer.start++;
 
     /* buffer empty? disable interrupt */
-    if(txBuffer.start == txBuffer.end)
+    if(UARTtxBuffer.start == UARTtxBuffer.end)
 	{
         UCSRB &= ~(1<<UDRIE);
 		readyToExchange = 1;

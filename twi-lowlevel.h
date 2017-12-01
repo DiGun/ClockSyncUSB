@@ -25,7 +25,7 @@
 //#define ATMEGA8
 
 #ifndef CPU_FREQ
-#define CPU_FREQ 16000000L
+#define CPU_FREQ 14745600L
 #endif
 
 #ifndef TWI_FREQ

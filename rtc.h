@@ -20,6 +20,7 @@
 #include <avr/io.h>
 #include "twi.h"
 
+#define TIME_ZONE 2 * 60*60
 #define DS1307_SLAVE_ADDR 0b11010000
 
 /** Time structure
@@ -38,18 +39,30 @@
  * and translation has to be done manually (you can call rtc_24h_to_12h to perform the calculation)
  *
  */
+/*
+typedef struct {
+	uint16_t     year;   
+	uint8_t      month;   
+	uint8_t      mday;   
+	uint8_t      hour;   
+	uint8_t      min;   
+	uint8_t      sec;   
+	uint8_t      wday;  
+} tm_rtc;
+*/
+
 struct tm_rtc {
-	int sec;      // 0 to 59
-	int min;      // 0 to 59
-	int hour;     // 0 to 23
-	int mday;     // 1 to 31
-	int mon;      // 1 to 12
-	int year;     // year-99
-	int wday;     // 1-7
+	uint8_t sec;      // 0 to 59
+	uint8_t min;      // 0 to 59
+	uint8_t hour;     // 0 to 23
+	uint8_t mday;     // 1 to 31
+	uint8_t mon;      // 1 to 12
+	uint16_t year;    // year-99
+	uint8_t wday;     // 1-7
 
     // 12-hour clock data
     bool am; // true for AM, false for PM
-    int twelveHour; // 12 hour clock time
+    uint8_t twelveHour; // 12 hour clock time
 };
 
 // statically allocated
@@ -112,4 +125,6 @@ struct tm_rtc* rtc_get_alarm(void);
 void rtc_get_alarm_s(uint8_t* hour, uint8_t* min, uint8_t* sec);
 bool rtc_check_alarm(void);
 
+uint32_t rtc_Time2Unix(struct tm_rtc* rtc);
+void rtc_Unix2Time(uint32_t utc, struct tm_rtc* rtc);
 #endif

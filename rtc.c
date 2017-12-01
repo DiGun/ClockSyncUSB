@@ -80,6 +80,7 @@
 
 // statically allocated structure for time value
 struct tm_rtc _tm;
+static const uint8_t numofdays[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 
 uint8_t dec2bcd(uint8_t d)
 {
@@ -176,6 +177,13 @@ struct tm_rtc* rtc_get_time(void)
 	_tm.mon = bcd2dec(rtc[5] & 0x1F); // returns 1-12
 	century = (rtc[5] & 0x80) >> 7;
 	_tm.year = century == 1 ? 2000 + bcd2dec(rtc[6]) : 1900 + bcd2dec(rtc[6]); // year 0-99
+	if (_tm.year<1970)
+		{
+			_tm.year+=100;
+		}
+
+//	_tm.year = rtc[5];
+
 	_tm.wday = bcd2dec(rtc[3]); // returns 1-7
 
 	if (_tm.hour == 0) {
@@ -542,7 +550,7 @@ void rtc_set_alarm_s(uint8_t hour, uint8_t min, uint8_t sec)
 		rtc_write_byte(dec2bcd(sec),  0x07); // second
 		rtc_write_byte(dec2bcd(min),  0x08); // minute
 		rtc_write_byte(dec2bcd(hour), 0x09); // hour
-		rtc_write_byte(0b10000001,         0x0a); // day (upper bit must be set)
+		rtc_write_byte(0b10000001, 0x0a); // day (upper bit must be set)
 
 		// clear alarm flag
 		uint8_t val = rtc_read_byte(0x0f);
@@ -605,4 +613,69 @@ bool rtc_check_alarm(void)
 
 		return val & 1 ? 1 : 0;
 	}
+}
+
+
+/*------------------------------------------*/
+/* Convert time structure to timeticks      */
+/*------------------------------------------*/
+uint32_t rtc_Time2Unix(struct tm_rtc* rtc)
+{
+	uint32_t utc, i, y;
+
+//	if (rtc->year > 2106 || !rtc->mon || !rtc->mday) return 0;
+	if (rtc->year > 2106) return 0;
+	if (!rtc->mon) return 0;
+	if (!rtc->mday) return 0;
+
+	y = rtc->year - 1970;
+
+	utc = y / 4 * 1461; y %= 4;
+	utc += y * 365 + (y > 2 ? 1 : 0);
+	
+	for (i = 0; i < 12 && i + 1 < rtc->mon; i++)
+	{
+		utc += numofdays[i];
+		if (i == 1 && y == 2) utc++;
+	}
+	
+	utc += rtc->mday - 1;
+
+	//	utc *= 86400;
+	//	return utc;
+
+	utc *= 86400;
+	utc += (uint32_t)rtc->hour * 3600 + (uint32_t)rtc->min * 60 + rtc->sec;
+
+	utc -= (uint32_t)TIME_ZONE;
+	return utc;
+}
+
+/*------------------------------------------*/
+/* Get time in calendar form                */
+/*------------------------------------------*/
+
+void rtc_Unix2Time(uint32_t utc, struct tm_rtc* rtc)
+{
+	uint32_t n,i,d;
+	utc += (uint32_t)TIME_ZONE;
+	/* Compute  hours */
+
+	rtc->sec = (uint8_t)(utc % 60); utc /= 60;
+	rtc->min = (uint8_t)(utc % 60); utc /= 60;
+	rtc->hour = (uint8_t)(utc % 24); utc /= 24;
+	rtc->wday = (uint8_t)((utc + 4) % 7);
+	rtc->year = (uint16_t)(1970 + utc / 1461 * 4); utc %= 1461;
+	n = ((utc >= 1096) ? utc - 1 : utc) / 365;
+	rtc->year += n;
+	utc -= n * 365 + (n > 2 ? 1 : 0);
+	for (i = 0; i < 12; i++)
+	{
+		d = numofdays[i];
+		if (i == 1 && n == 2) d++;
+		if (utc < d) break;
+		utc -= d;
+	}
+	rtc->mon = (uint8_t)(1 + i);
+	rtc->mday = (uint8_t)(1 + utc);
 }
