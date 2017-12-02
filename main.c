@@ -9,6 +9,7 @@
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <stdlib.h>
+#include <avr/eeprom.h>
 
 #define BAUD 9600
 #include "tm1637.h"
@@ -24,6 +25,24 @@ volatile uint8_t refresh;
 uint32_t number;
 uint8_t	mode;
 
+uint32_t eedata[10] EEMEM;
+typedef struct 
+{
+	uint8_t h;	
+	uint8_t m;
+}eetime;
+
+typedef struct 
+{
+	eetime on;
+	eetime off;	
+}eeonoff;
+
+union 
+{
+	eeonoff ee;
+	uint32_t mm;
+}led_rule;
 
 void Init()
 {
@@ -47,6 +66,7 @@ void NumbToUART(uint32_t number)
 
 
 uint32_t cmd_get_num;//полученный номер
+uint8_t cmd_get_param;//параметр до N
 uint8_t cmd_mode; //текущий режим
 uint8_t cmd_type; //тип команды
 uint8_t cmd_status;//статус текущей команды
@@ -97,8 +117,8 @@ void func_get(char c)
 		uart_putc_w('A');
 		uart_putc_w('T');
 		NumbToUART(time);
-		uart_putc_w('D');
-		NumbToUART(time);
+//		uart_putc_w('D');
+//		NumbToUART(time);
 		uart_putln();
 		func_ok();
 		break;
@@ -107,8 +127,8 @@ void func_get(char c)
 		uart_putc_w('A');
 		uart_putc_w('M');
 		NumbToUART(mode);
-		uart_putc_w('D');
-		NumbToUART(mode);
+//		uart_putc_w('D');
+//		NumbToUART(mode);
 		uart_putln();
 		func_ok();
 		break;
@@ -117,8 +137,8 @@ void func_get(char c)
 		uart_putc_w('A');
 		uart_putc_w('I');
 		NumbToUART(TM1637_brightness);
-		uart_putc_w('D');
-		NumbToUART(TM1637_brightness);
+//		uart_putc_w('D');
+//		NumbToUART(TM1637_brightness);
 		uart_putln();
 		func_ok();
 		break;
@@ -159,11 +179,12 @@ int8_t get_str_num(char c)
 		}
 		switch (c)
 		{
+			case 'N': //next
 			case 13:
 			case 10:
 			dup=0;
 			return 1;
-			case 'D':
+			case 'D': //duplicate
 			dup=1;
 			break;
 			default:
@@ -212,6 +233,10 @@ void func_set(char c)
 				case 'I':
 				TM1637_set_brightness(cmd_get_num);//Яркость
 				break;
+				case 'R':
+				eeprom_update_dword(&eedata[cmd_get_param], cmd_get_num);
+				break;
+/*				
 				case 'L':
 				if(cmd_get_num)
 				{
@@ -222,9 +247,10 @@ void func_set(char c)
 					PORTC&=~(1<<PC5);
 				}
 				break;
-				case 'N':
-				number=cmd_get_num;
-				break;
+*/				
+//				case 'N':
+//				number=cmd_get_num;
+//				break;
 			}
 
 			uart_putln();
@@ -236,6 +262,8 @@ void func_set(char c)
 			case -1:
 			func_error();
 			break;
+			case 2:
+			cmd_get_param=(uint8_t)cmd_get_num;
 		}
 	}
 	else
@@ -245,8 +273,9 @@ void func_set(char c)
 			case 'T':	//timestamp
 			case 'M':	//mode
 			case 'I':	//intensivity
-			case 'L':	//led
-			case 'N':	//number
+//			case 'L':	//led
+			case 'R':	//rule
+//			case 'N':	//number
 			cmd_status = c;
 			break;
 
@@ -328,7 +357,7 @@ int main(void)
   mode=1;
   cmd_mode=0;
   cmd_status=0;
-  
+  refresh=1;
   DDRD|=1<<PD7;
   
 //  rtc_date date;
@@ -339,7 +368,7 @@ int main(void)
   Init();
   
 	//	init_USART();
-	uart_stop_receve();
+//	uart_stop_receve();
 	sei();
    // RTC configuration
     twi_init_master();
@@ -348,9 +377,9 @@ int main(void)
     TM1637_init();	
 
 	uart_init();
-	uart_puts_P(PSTR("MCUR"));
+//	uart_puts_P(PSTR("MCUR"));
   
-  uart_putln();
+//  uart_putln();
 // rtc_get_time();
 /* loop */
   while (1) 
@@ -364,31 +393,42 @@ int main(void)
 		rtc_get_time();
 		switch (mode)
 		{
-			case 1:
+			case 0: //Secunda
 			TM1637_setTime(_tm.min,_tm.sec);
 			TM1637_display_colon(true);
 			break;
-			case 2:
+			case 1: //Time
 			TM1637_setTime(_tm.hour,_tm.min);
 			TM1637_display_colon(true);
 			break;
-			case 3:
-//			clearDisplay();
+			case 2: //Date
+			TM1637_setTime(_tm.mon,_tm.mday);
+			TM1637_display_colon(true);
 			break;
-			case 4:
-//			print_numb();
+			case 3: //Year
+			TM1637_setTime(_tm.year/100,_tm.year%100);
+			TM1637_display_colon(true);
 			break;
+			case 7:
+			TM1637_enable(false);
+			break;
+			case 8:
+			TM1637_enable(true);
+			break;
+			
+			
+			
 		}
 		
 		
 		
 		
-		PORTD|=1<<PD7;
+//		PORTD|=1<<PD7;
 //		PORTD^=1<<PD7;
 		break;
 		case 2:
 		TM1637_display_colon(false);
-		PORTD&=~(1<<PD7);
+//		PORTD&=~(1<<PD7);
 		break;
 	  }
 	  time=rtc_Time2Unix(&_tm);
