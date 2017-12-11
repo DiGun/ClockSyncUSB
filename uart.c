@@ -3,29 +3,30 @@
 
 #include <avr/interrupt.h>
 #include <util/setbaud.h>
+#define U2X 1
 
 void uart_init()
 {
     /* set baudrate */
-    UBRRH = UBRRH_VALUE;
-    UBRRL = UBRRL_VALUE;
+    UBRR0H = UBRRH_VALUE;
+    UBRR0L = UBRRL_VALUE;
 
     /* double transmission speed? */
     #if USE_2X
-    UCSRA |= (1<<U2X);
+    UCSR0A |= (1<<U2X);
     #else
-    UCSRA &= ~(1<<U2X);
+    UCSR0A &= ~(1<<U2X);
     #endif
 
     /* frame format: asynchronous, 8 data bits, no parity, 1 stop bit */
     #ifdef URSEL
-    UCSRC = (1<<URSEL) | (1<<UCSZ1) | (1<<UCSZ0);
+    UCSR0C = (1<<URSEL) | (1<<UCSZ1) | (1<<UCSZ0);
     #else
-    UCSRC = (1<<UCSZ1) | (1<<UCSZ0);
+    UCSR0C = (1<<UCSZ01) | (1<<UCSZ00);
     #endif
 
     /* enable receiver, transmitter and receive complete interrupt */
-    UCSRB |= (1<<RXCIE) | (1<<RXEN) | (1<<TXEN);
+    UCSR0B |= (1<<RXCIE0) | (1<<RXEN0) | (1<<TXEN0);
 
     /* init ring buffer pointers */
     UARTrxBuffer.start = UARTrxBuffer.buffer;
@@ -58,7 +59,7 @@ int8_t uart_putc(char c)
         UARTtxBuffer.end++;
 
     /* enable tx register empty interrupt */
-    UCSRB |= (1<<UDRIE);
+    UCSR0B |= (1<<UDRIE0);
 	readyToExchange = 0;
 
     return 0;
@@ -127,7 +128,7 @@ int8_t uart_getc(char *dest)
 {
     /* is the buffer empty? */
     readyToExchange = 0;
-    UCSRB |= (1 << RXCIE);
+    UCSR0B |= (1 << RXCIE0);
     if(UARTrxBuffer.start == UARTrxBuffer.end)  
 	{
 
@@ -148,14 +149,14 @@ int8_t uart_getc(char *dest)
 
 inline void uart_stop_receve(void)
 {
-	    UCSRB &= ~(1 << RXCIE);
+	    UCSR0B &= ~(1 << RXCIE0);
 	    readyToExchange = 1;	
 }
 /* uart receive complete interrupt */
-ISR(USART__RXC_vect)
+ISR(USART_RX_vect)
 {
     uint8_t rc;
-    rc = UDR;
+    rc = UDR0;
 
     /* store in buffer */
     if((UARTrxBuffer.end == &UARTrxBuffer.buffer[BUFFERSIZE-1] &&
@@ -177,10 +178,10 @@ ISR(USART__RXC_vect)
 }
 
 /* uart transmit register empty interrupt */
-ISR(USART__UDRE_vect)
+ISR(USART_UDRE_vect)
 {
     /* send byte */
-    UDR = *UARTtxBuffer.start;
+    UDR0 = *UARTtxBuffer.start;
 
     /* set pointer to next field */
     if(UARTtxBuffer.start == &UARTtxBuffer.buffer[BUFFERSIZE-1])
@@ -191,7 +192,7 @@ ISR(USART__UDRE_vect)
     /* buffer empty? disable interrupt */
     if(UARTtxBuffer.start == UARTtxBuffer.end)
 	{
-        UCSRB &= ~(1<<UDRIE);
+        UCSR0B &= ~(1<<UDRIE0);
 		readyToExchange = 1;
 	}		
 }

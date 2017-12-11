@@ -24,12 +24,15 @@ uint32_t time;
 volatile uint8_t refresh;
 uint32_t number;
 uint8_t	mode;
+uint8_t last_min;
 
-uint32_t eedata[10] EEMEM;
+#define MAX_ALARM 16
+
+uint32_t eedata[MAX_ALARM] EEMEM;
 typedef struct 
 {
-	uint8_t h;	
 	uint8_t m;
+	uint8_t h;
 }eetime;
 
 typedef struct 
@@ -38,18 +41,25 @@ typedef struct
 	eetime off;	
 }eeonoff;
 
-union 
+typedef struct
+{
+	uint16_t on;
+	uint16_t off;
+}eecmp;
+
+union led_rule
 {
 	eeonoff ee;
 	uint32_t mm;
-}led_rule;
+	eecmp cc;
+};
 
 void Init()
 {
 	// init Timer0
 	
-	TIMSK |= (1 << TOIE0);        // interrupt enable - here overflow
-	TCCR0 |= TIMER0_PRESCALER;    // use defined prescaler value
+	TIMSK0 |= (1 << TOIE0);        // interrupt enable - here overflow
+	TCCR0B |= TIMER0_PRESCALER;    // use defined prescaler value
 }
 
 void NumbToUART(uint32_t number)
@@ -109,53 +119,10 @@ inline uint8_t func_type(char c)
 	return cmd_type;
 }
 
-void func_get(char c)
-{
-	switch (c)
-	{
-		case 'T':	//timestamp
-		uart_putc_w('A');
-		uart_putc_w('T');
-		NumbToUART(time);
-//		uart_putc_w('D');
-//		NumbToUART(time);
-		uart_putln();
-		func_ok();
-		break;
-
-		case 'M':	//mode
-		uart_putc_w('A');
-		uart_putc_w('M');
-		NumbToUART(mode);
-//		uart_putc_w('D');
-//		NumbToUART(mode);
-		uart_putln();
-		func_ok();
-		break;
-		
-		case 'I':	//intens
-		uart_putc_w('A');
-		uart_putc_w('I');
-		NumbToUART(TM1637_brightness);
-//		uart_putc_w('D');
-//		NumbToUART(TM1637_brightness);
-		uart_putln();
-		func_ok();
-		break;
-				
-		case 'A':	//get
-		func_error();
-		//		cmd_type=c;
-		break;
-		default:
-		func_error();
-	}
-	//	cmd_type=0;
-}
 
 int8_t get_str_num(char c)
 {
-	static char buf[12];//текстовы числовой параметр 11
+	static char buf[12];//текстовый числовой параметр 11
 	static uint8_t len; //длина
 	static uint8_t dup; //дибликат
 	if (c>'9' || c<'0')
@@ -177,9 +144,17 @@ int8_t get_str_num(char c)
 			}
 			cmd_get_num=t_num;
 		}
+		else
+		{
+			dup=0;
+			return -1;
+		}
 		switch (c)
 		{
-			case 'N': //next
+			case ' ': //next
+			len=0;
+			dup=0;
+			return 2;
 			case 13:
 			case 10:
 			dup=0;
@@ -205,12 +180,92 @@ int8_t get_str_num(char c)
 			//			PORTC|=1<<PC5;
 			len=0;
 			dup=0;
-			func_error();
+			return -1;
 		}
 	}
 	return 0;
 }
 
+//***********************************
+//* Get
+//***********************************
+void func_get(char c)
+{
+	if (cmd_status)
+	{
+		switch (get_str_num(c))
+		{
+			case 1:
+			switch (cmd_status)
+			{
+				case 'R':
+				uart_putc_w('A');
+				uart_putc_w('R');
+				NumbToUART(cmd_get_num);
+				uart_putc_w(' ');
+				NumbToUART(eeprom_read_dword(&eedata[cmd_get_num&0x0F]));
+//				uart_putc_w('D');
+//				NumbToUART(eeprom_read_dword(&eedata[cmd_get_num&0x0F]));
+				uart_putln();
+				func_ok();
+				break;
+			}
+			break;
+			case -1:
+			func_error();
+			break;
+		}
+		return;
+	}
+	switch (c)
+	{
+		case 'T':	//timestamp
+		uart_putc_w('A');
+		uart_putc_w('T');
+		NumbToUART(time);
+		uart_putc_w('D');
+		NumbToUART(time);
+		uart_putln();
+		func_ok();
+		break;
+
+		case 'M':	//mode
+		uart_putc_w('A');
+		uart_putc_w('M');
+		NumbToUART(mode);
+		uart_putc_w('D');
+		NumbToUART(mode);
+		uart_putln();
+		func_ok();
+		break;
+		
+		case 'I':	//intens
+		uart_putc_w('A');
+		uart_putc_w('I');
+		NumbToUART(TM1637_brightness);
+		uart_putc_w('D');
+		NumbToUART(TM1637_brightness);
+		uart_putln();
+		func_ok();
+		break;
+
+		case 'R':	//Alarm
+		cmd_status = c;
+		break;
+				
+		case 'A':	//get
+		func_error();
+		//		cmd_type=c;
+		break;
+		default:
+		func_error();
+	}
+	//	cmd_type=0;
+}
+
+//***********************************
+//* Set
+//***********************************
 void func_set(char c)
 {
 	if (cmd_status)
@@ -234,9 +289,9 @@ void func_set(char c)
 				TM1637_set_brightness(cmd_get_num);//Яркость
 				break;
 				case 'R':
-				eeprom_update_dword(&eedata[cmd_get_param], cmd_get_num);
+				eeprom_update_dword(&eedata[cmd_get_param&0x0F], cmd_get_num);
 				break;
-/*				
+				
 				case 'L':
 				if(cmd_get_num)
 				{
@@ -247,10 +302,10 @@ void func_set(char c)
 					PORTC&=~(1<<PC5);
 				}
 				break;
-*/				
-//				case 'N':
-//				number=cmd_get_num;
-//				break;
+				
+				case 'N':
+				number=cmd_get_num;
+				break;
 			}
 
 			uart_putln();
@@ -273,9 +328,9 @@ void func_set(char c)
 			case 'T':	//timestamp
 			case 'M':	//mode
 			case 'I':	//intensivity
-//			case 'L':	//led
+			case 'L':	//led
 			case 'R':	//rule
-//			case 'N':	//number
+			case 'N':	//number
 			cmd_status = c;
 			break;
 
@@ -329,11 +384,63 @@ void main_func(char c)
 	}
 }
 
+char invalid_time(eetime* ee)
+{
+	if ((ee->h<24)&&(ee->m<60))
+	{
+		return 0;
+	}
+	return 1;
+}
 
+inline char check_time(eeonoff* ee)
+{
+	if (invalid_time(&ee->on)||invalid_time(&ee->off))
+    {
+		return 0;	
+    }
+	if (ee->on.h>ee->off.h)
+	{
+		return 0;		
+	}
+	if (ee->on.h==ee->off.h)
+	{
+      if (ee->on.m>=ee->off.m)
+	  {
+		return 0;
+	  }
+	}
+	return 1;
+}
+inline char between_time(eecmp* cc)
+{
+	int16_t minutes;
+	minutes=(_tm.hour<<8)+_tm.min;
+	if ((cc->on<=minutes)&&(cc->off>=minutes))
+	{
+		return 1;
+	}
+	return 0;	
+}
 
-
-
-
+char check_alarm()
+{
+ uint8_t f;
+ union led_rule alarm;
+ for(f=0;f<MAX_ALARM;f++)
+ {
+	alarm.mm=(eeprom_read_dword(&eedata[f]));
+	if (!check_time(&alarm.ee))
+	{
+		continue;
+	}
+	if (between_time(&alarm.cc))
+	{
+		return 1;
+	}
+ }
+ return 0;
+}
 
 
 #define STEP4SECUNDA	225
@@ -358,6 +465,7 @@ int main(void)
   cmd_mode=0;
   cmd_status=0;
   refresh=1;
+  last_min=254;
   DDRD|=1<<PD7;
   
 //  rtc_date date;
@@ -403,25 +511,37 @@ int main(void)
 			break;
 			case 2: //Date
 			TM1637_setTime(_tm.mon,_tm.mday);
-			TM1637_display_colon(true);
+//			TM1637_display_colon(true);
 			break;
 			case 3: //Year
 			TM1637_setTime(_tm.year/100,_tm.year%100);
-			TM1637_display_colon(true);
+//			TM1637_display_colon(true);
 			break;
-			case 7:
+			case 4: // Alarm
+			{
+				union led_rule alarm;		
+				alarm.mm=(eeprom_read_dword(&eedata[0]));
+				if (time&1)
+				{
+					TM1637_setTime(alarm.ee.off.h,alarm.ee.off.m);
+				}
+				else
+				{
+					TM1637_display_colon(true);
+					TM1637_setTime(alarm.ee.on.h,alarm.ee.on.m);
+				}
+				
+			}
+			break;
+//			TM1637_display_colon(true);
+			case 5:
 			TM1637_enable(false);
 			break;
-			case 8:
+			case 6:
 			TM1637_enable(true);
 			break;
 			
-			
-			
 		}
-		
-		
-		
 		
 //		PORTD|=1<<PD7;
 //		PORTD^=1<<PD7;
@@ -430,6 +550,18 @@ int main(void)
 		TM1637_display_colon(false);
 //		PORTD&=~(1<<PD7);
 		break;
+	  }
+	  if (last_min!=_tm.min)
+	  {
+		  last_min=_tm.min;
+		  if (check_alarm())
+		  {
+			PORTD|=1<<PD7;
+		  }
+		  else
+		  {
+			PORTD&=~(1<<PD7);
+		  }
 	  }
 	  time=rtc_Time2Unix(&_tm);
 	  refresh=0;
