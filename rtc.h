@@ -101,7 +101,7 @@ void rtc_run_clock(bool run);
 bool rtc_is_clock_running(void);
 
 // Read Temperature (DS3231 only)
-void  ds3231_get_temp_int(int8_t* i, uint8_t* f);
+void  ds3231_get_temp_int(int16_t* i);
 void rtc_force_temp_conversion(uint8_t block);
 
 // SRAM read/write DS1307 only

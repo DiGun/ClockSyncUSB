@@ -416,7 +416,7 @@ inline char between_time(eecmp* cc)
 {
 	int16_t minutes;
 	minutes=(_tm.hour<<8)+_tm.min;
-	if ((cc->on<=minutes)&&(cc->off>=minutes))
+	if ((cc->on<=minutes)&&(cc->off>minutes))
 	{
 		return 1;
 	}
@@ -427,7 +427,7 @@ char check_alarm()
 {
  uint8_t f;
  union led_rule alarm;
- for(f=0;f<MAX_ALARM;f++)
+ for(f=0;f<MAX_ALARM-1;f++)
  {
 	alarm.mm=(eeprom_read_dword(&eedata[f]));
 	if (!check_time(&alarm.ee))
@@ -441,7 +441,23 @@ char check_alarm()
  }
  return 0;
 }
-
+void check_intens()
+{
+ union led_rule alarm;
+ alarm.mm=(eeprom_read_dword(&eedata[MAX_ALARM-2]));
+ if (!check_time(&alarm.ee))
+ {
+		 return;
+ }
+if (between_time(&alarm.cc))
+ {
+	 TM1637_set_brightness(7);
+ }
+ else
+ {
+	 TM1637_set_brightness(1);
+ }	 
+}
 
 #define STEP4SECUNDA	225
 
@@ -511,7 +527,7 @@ int main(void)
 			break;
 			case 2: //Date
 			TM1637_setTime(_tm.mon,_tm.mday);
-//			TM1637_display_colon(true);
+			TM1637_display_colon(true);
 			break;
 			case 3: //Year
 			TM1637_setTime(_tm.year/100,_tm.year%100);
@@ -519,7 +535,19 @@ int main(void)
 			break;
 			case 4: // Alarm
 			{
-				union led_rule alarm;		
+				if(rtc_is_ds3231()) 
+				{
+					int16_t t;
+					TM1637_display_colon(true);
+					ds3231_get_temp_int(&t);
+					t=(t+5)/10;
+					TM1637_set2((uint8_t)(t/10),1);
+					TM1637_display_digit(2,(uint8_t)(t%10));
+					TM1637_display_segments(3,0x39);
+				}
+				
+				
+/*				union led_rule alarm;		
 				alarm.mm=(eeprom_read_dword(&eedata[0]));
 				if (time&1)
 				{
@@ -530,7 +558,8 @@ int main(void)
 					TM1637_display_colon(true);
 					TM1637_setTime(alarm.ee.on.h,alarm.ee.on.m);
 				}
-				
+				*/
+;
 			}
 			break;
 //			TM1637_display_colon(true);
@@ -547,20 +576,24 @@ int main(void)
 //		PORTD^=1<<PD7;
 		break;
 		case 2:
-		TM1637_display_colon(false);
+		if(mode!=2&&mode!=4)
+			TM1637_display_colon(false);
 //		PORTD&=~(1<<PD7);
 		break;
 	  }
 	  if (last_min!=_tm.min)
 	  {
 		  last_min=_tm.min;
+		  check_intens();
 		  if (check_alarm())
 		  {
-			PORTD|=1<<PD7;
+//			PORTD|=1<<PD7;
+			PORTD&=~(1<<PD7);
 		  }
 		  else
 		  {
-			PORTD&=~(1<<PD7);
+			  PORTD|=1<<PD7;
+//			PORTD&=~(1<<PD7);
 		  }
 	  }
 	  time=rtc_Time2Unix(&_tm);

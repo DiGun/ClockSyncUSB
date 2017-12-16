@@ -295,12 +295,11 @@ bool rtc_is_clock_running(void)
   return true;
 }
 
-void ds3231_get_temp_int(int8_t* i, uint8_t* f)
+void ds3231_get_temp_int(int16_t* i)
 {
 	uint8_t msb, lsb;
 
 	*i = 0;
-	*f = 0;
 
 	if (s_is_ds1307) return; // only valid on DS3231
 
@@ -316,9 +315,9 @@ void ds3231_get_temp_int(int8_t* i, uint8_t* f)
 		lsb = twi_receive(); // fraction part
 
 		// integer part in entire byte
-		*i = msb;
+		*i = (msb*100)+(lsb >> 6) * 25;
 		// fractional part in top two bits (increments of 0.25)
-		*f = (lsb >> 6) * 25;
+//		*f = (lsb >> 6) * 25;
 
 		// float value can be read like so:
 		// float temp = ((((short)msb << 8) | (short)lsb) >> 6) / 4.0f;
